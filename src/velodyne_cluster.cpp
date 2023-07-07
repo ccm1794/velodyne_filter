@@ -1,4 +1,4 @@
-// 깃에 추가함.ddㅇㄴㄹ
+// 깃에 추가함.ddㅇㄴㄹㅁㅇㄴㄻ
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_cloud.hpp>
