@@ -35,8 +35,8 @@ using PointT = pcl::PointXYZI;
 class VelodyneCluster : public rclcpp::Node
 {
 public:
-  visualization_msgs::msg::MarkerArray markerArray;
-  visualization_msgs::msg::Marker marker;
+  // visualization_msgs::msg::MarkerArray markerArray;
+  // visualization_msgs::msg::Marker marker;
   sensor_msgs::msg::PointCloud2 output;
   char mystr[10];
   
@@ -116,8 +116,12 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     clusters.push_back(cluster);
   }
   cout << clusters.size() << endl;
+
+  visualization_msgs::msg::MarkerArray markerArray;
   for(int i=0; i<clusters.size(); i++)
   {
+    
+    visualization_msgs::msg::Marker marker;
     Eigen::Vector4f centroid;
     Eigen::Vector4f min_p;
     Eigen::Vector4f max_p;
@@ -159,46 +163,46 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     pcl::PointXYZ boxDimensions(width, height, depth);
     pcl::PointXYZ boxOrientation(rotation.x(), rotation.y(), rotation.z());
 
-    
-    this->marker.header.frame_id = "velodyne";
-    this->marker.ns = "my_marker";
-    this->marker.id = i;
-    this->marker.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
-    this->marker.action = visualization_msgs::msg::Marker::ADD;
-    this->marker.type = visualization_msgs::msg::Marker::CUBE;
+    marker.header.frame_id = "velodyne";
+    marker.ns = "my_marker";
+    marker.id = i;
+    marker.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+    marker.lifetime.sec = 1;
 
-    this->marker.scale.x = width;
-    this->marker.scale.y = height;
-    this->marker.scale.z = depth; //스케일은 벡터 형태로?
+    marker.scale.x = width;
+    marker.scale.y = height;
+    marker.scale.z = depth; //스케일은 벡터 형태로?
     //this->marker.scale = scale_; // 두 방법 모두 가능하다
 
-    this->marker.color.r = 0.5;
-    this->marker.color.g = 0.5;
-    this->marker.color.b = 0.5;
-    this->marker.color.a = 0.5; // 0~1사이 값
+    marker.color.r = 0.5;
+    marker.color.g = 0.5;
+    marker.color.b = 0.5;
+    marker.color.a = 0.5; // 0~1사이 값
     //this->marker.color = std_msgs::msg::ColorRGBA(0.5, 0.5, 0.5, 0.8); //위의 네 줄을 이렇게 해도 된다?
 
     // this->marker.pose.orientation = quaternion.x;
     // this->marker.pose.orientation = quaternion.y;
     // this->marker.pose.orientation = quaternion.z;
     // this->marker.pose.orientation = quaternion.w;
-    this->marker.pose.orientation = quaternion;
+    marker.pose.orientation = quaternion;
 
     // this->marker.pose.position = center_point.x;
     // this->marker.pose.position = center_point.y;
     // this->marker.pose.position = center_point.z;
-    this->marker.pose.position = center_point;
+    marker.pose.position = center_point;
 
     // sprintf(this->mystr, "%g", i);
     // this->marker.text = this->mystr;
 
-    this->markerArray.markers.push_back(this->marker);
+    markerArray.markers.push_back(marker);
     
   }
   
   // this->markerArray.markers.push_back(this->marker);
-  this->marker_Pub_->publish(this->markerArray);
-  this->markerArray.markers.clear();
+  marker_Pub_->publish(markerArray);
+  markerArray.markers.clear();
 
   pcl::PCLPointCloud2 cloud_p;
   pcl::toPCLPointCloud2(TotalCloud, cloud_p);
@@ -220,3 +224,7 @@ int main(int argc, char **argv)
 
 // 이 코드는 kdtree에 값을 넣을 때 데이터에 inf 나 nan 값이 있으면 오류가 뜨는 듯 하다.
 // 이것은 plz코드에 있는 385번째 줄부터 시작하는 범위를 제한하는 것으로 문제를 해결할 수 있다.
+
+
+// rviz상에 박스가 최대 클러스터 개수만큼 계속 남아 있는 현상 발생
+// marker에 lifetime을 설정함으로 해결 가능

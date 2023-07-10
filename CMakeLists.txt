@@ -68,14 +68,13 @@ ament_target_dependencies(velodyne_ROI ${dependencies})
 add_executable(velodyne_DownSampling src/velodyne_DownSampling.cpp)
 ament_target_dependencies(velodyne_DownSampling ${dependencies})
 
-add_executable(velodyne_bbox src/velodyne_bbox.cpp)
-ament_target_dependencies(velodyne_bbox ${dependencies})
+
 
 install(TARGETS
 velodyne_cluster
 velodyne_ROI
 velodyne_DownSampling
-velodyne_bbox
+
 DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY
