@@ -25,6 +25,12 @@
 #include <pcl/filters/crop_box.h>
 #include <pcl/surface/mls.h>
 
+#include <vision_msgs/msg/bounding_box3_d.hpp>
+#include <vision_msgs/msg/detection3_d.hpp>
+#include <vision_msgs/msg/detection3_d_array.hpp>
+//#include <vision_msgs/msg/ObjectHypothesisWithPose.hpp>
+
+
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <typeinfo>
 #include <cstdio>
@@ -50,6 +56,7 @@ public:
     marker_Pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/velodyne_bbox", 100);
     LiDAR_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_points_filtered", 100);
     LiDAR_pub_center = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_points_filtered_center", 100);
+    bbox_pub_ = this->create_publisher<vision_msgs::msg::Detection3DArray>("/lidar_bbox", 10);
 
     LiDAR_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "/velodyne_ROI", 100,
@@ -71,7 +78,9 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_Pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr LiDAR_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr LiDAR_pub_center;
+  rclcpp::Publisher<vision_msgs::msg::Detection3DArray>::SharedPtr bbox_pub_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr LiDAR_sub_;
+  
 };
 
 void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
@@ -123,9 +132,9 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
   cout << clusters.size() << endl;
 
   visualization_msgs::msg::MarkerArray markerArray;
+  vision_msgs::msg::Detection3DArray myboxArray;
   for(int i=0; i<clusters.size(); i++)
   {
-    
     visualization_msgs::msg::Marker marker;
     Eigen::Vector4f centroid;
     Eigen::Vector4f min_p;
@@ -140,13 +149,6 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     center_point.y = centroid[1];
     center_point.z = centroid[2];
 
-    PointT pt3;
-    pt3.x = centroid[0];
-    pt3.y = centroid[1];
-    pt3.z = centroid[2];
-    pt3.intensity = float(5);
-    TotalCloud2.push_back(pt3);
-
     geometry_msgs::msg::Point min_point;
     min_point.x = min_p.x(); //이렇게 해도 되네?
     min_point.y = min_p[1];
@@ -156,7 +158,6 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     max_point.x = max_p[0];
     max_point.y = max_p[1];
     max_point.z = max_p[2];
-
 
     float width = max_p[0] - min_p[0];
     float height = max_p[1] - min_p[1];
@@ -175,6 +176,24 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     pcl::PointXYZ boxDimensions(width, height, depth);
     pcl::PointXYZ boxOrientation(rotation.x(), rotation.y(), rotation.z());
 
+//===============================[ 3d bbox ]=======================================
+
+    vision_msgs::msg::Detection3D detection;
+    vision_msgs::msg::BoundingBox3D bbox;
+
+    bbox.center.position = center_point;
+    bbox.center.orientation = quaternion;
+    bbox.size.x = width;
+    bbox.size.y = height;
+    bbox.size.z = depth;
+
+    detection.header.frame_id = "velodyne";
+    detection.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+    detection.bbox = bbox;
+
+    myboxArray.detections.push_back(detection);
+
+//=================================================================================
     marker.header.frame_id = "velodyne";
     marker.ns = "my_marker";
     marker.id = i;
@@ -195,11 +214,15 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     //this->marker.color = std_msgs::msg::ColorRGBA(0.5, 0.5, 0.5, 0.8); //위의 네 줄을 이렇게 해도 된다?
 
     marker.pose.orientation = quaternion;
-
     marker.pose.position = center_point;
-
     markerArray.markers.push_back(marker);
-    
+
+    PointT pt3;
+    pt3.x = centroid[0];
+    pt3.y = centroid[1];
+    pt3.z = centroid[2];
+    pt3.intensity = float(5);
+    TotalCloud2.push_back(pt3);
   }
   
   // this->markerArray.markers.push_back(this->marker);
@@ -208,21 +231,22 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
   pcl::PCLPointCloud2 cloud_p;
   pcl::toPCLPointCloud2(TotalCloud, cloud_p);
+  pcl_conversions::fromPCL(cloud_p, this->output);
+  this->output.header.frame_id = "velodyne";
+  this->output.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+  this->LiDAR_pub_->publish(this->output);
 
   pcl::PCLPointCloud2 cloud_p2;
   pcl::toPCLPointCloud2(TotalCloud2, cloud_p2);
-
-  pcl_conversions::fromPCL(cloud_p, this->output);
   pcl_conversions::fromPCL(cloud_p2, this->output2);
-
-  this->output.header.frame_id = "velodyne";
-  this->output.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
   this->output2.header.frame_id = "velodyne";
   this->output2.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
-
-
-  this->LiDAR_pub_->publish(this->output);
   this->LiDAR_pub_center->publish(this->output2);
+
+  
+  myboxArray.header.frame_id = "velodyne";
+  myboxArray.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+  this->bbox_pub_->publish(myboxArray);
 }
 
 int main(int argc, char **argv)
