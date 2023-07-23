@@ -28,6 +28,7 @@ find_package(pcl_conversions REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(interfaces REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -45,6 +46,7 @@ set(dependencies
   OpenCV
   vision_msgs
   visualization_msgs
+  interfaces
 )
 
 link_libraries(

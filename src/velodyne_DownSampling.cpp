@@ -50,7 +50,8 @@ void VelodyneVoxelGrid::LiDARCallback(const sensor_msgs::msg::PointCloud2::Share
 
   pcl::VoxelGrid<PointT> VG;
   VG.setInputCloud(cloud_filtered);
-  VG.setLeafSize(0.1f, 0.1f, 0.1f);
+  // VG.setLeafSize(0.1f, 0.1f, 0.1f);
+  VG.setLeafSize(0.05f, 0.05f, 0.05f);
   VG.filter(*cloud_filtered);
 
   pcl::toROSMsg(*cloud_filtered, this->output);

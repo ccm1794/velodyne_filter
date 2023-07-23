@@ -52,14 +52,14 @@ void VelodyneROI::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedPtr m
 
   pcl::CropBox<PointT> cropFilter;
   cropFilter.setInputCloud(cloud_filtered);
-  cropFilter.setMin(Eigen::Vector4f(0.0, -3.0, -0.5, 1.0));
+  cropFilter.setMin(Eigen::Vector4f(0.0, -3.0, -1.0, 1.0));
   cropFilter.setMax(Eigen::Vector4f(4.0, 3.0, 3.0, 1.0));
   cropFilter.filter(*cloud_filtered);
 
   if(cloud_filtered->points.size() == 0)
   {
     this->flag = 0;
-    cout << "조졌네 이거" << endl;
+    //cout << "조졌네 이거" << endl;
   }
   else
   {
