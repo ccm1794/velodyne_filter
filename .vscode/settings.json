@@ -1,5 +1,31 @@
 {
     "files.associations": {
         "limits": "cpp"
-    }
+    },
+    "python.autoComplete.extraPaths": [
+        "/home/ccm/ros2_ws/install/yolov7_ros2/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/velodyne_msgs/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/build/object_detection",
+        "/home/ccm/ros2_ws/install/object_detection/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/nmea_navsat_driver/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/build/make_data_set",
+        "/home/ccm/ros2_ws/install/make_data_set/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/local_pkg/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/kbub_interfaces/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/interfaces/lib/python3.8/site-packages",
+        "/opt/ros/foxy/lib/python3.8/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/ccm/ros2_ws/install/yolov7_ros2/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/velodyne_msgs/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/build/object_detection",
+        "/home/ccm/ros2_ws/install/object_detection/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/nmea_navsat_driver/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/build/make_data_set",
+        "/home/ccm/ros2_ws/install/make_data_set/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/local_pkg/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/kbub_interfaces/lib/python3.8/site-packages",
+        "/home/ccm/ros2_ws/install/interfaces/lib/python3.8/site-packages",
+        "/opt/ros/foxy/lib/python3.8/site-packages"
+    ]
 }
