@@ -28,6 +28,7 @@ find_package(pcl_conversions REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(interfaces REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -45,6 +46,7 @@ set(dependencies
   OpenCV
   vision_msgs
   visualization_msgs
+  interfaces
 )
 
 link_libraries(
@@ -68,14 +70,26 @@ ament_target_dependencies(velodyne_ROI ${dependencies})
 add_executable(velodyne_DownSampling src/velodyne_DownSampling.cpp)
 ament_target_dependencies(velodyne_DownSampling ${dependencies})
 
-add_executable(velodyne_bbox src/velodyne_bbox.cpp)
-ament_target_dependencies(velodyne_bbox ${dependencies})
+add_executable(velodyne_cluster_sac src/sac/velodyne_cluster_sac.cpp)
+ament_target_dependencies(velodyne_cluster_sac ${dependencies})
+
+add_executable(velodyne_ROI_sac src/sac/velodyne_ROI_sac.cpp)
+ament_target_dependencies(velodyne_ROI_sac ${dependencies})
+
+add_executable(velodyne_DownSampling_sac src/sac/velodyne_DownSampling_sac.cpp)
+ament_target_dependencies(velodyne_DownSampling_sac ${dependencies})
+
+add_executable(velodyne_ransac src/sac/velodyne_ransac.cpp)
+ament_target_dependencies(velodyne_ransac ${dependencies})
 
 install(TARGETS
 velodyne_cluster
 velodyne_ROI
 velodyne_DownSampling
-velodyne_bbox
+velodyne_cluster_sac
+velodyne_ROI_sac
+velodyne_DownSampling_sac
+velodyne_ransac
 DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

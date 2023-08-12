@@ -55,7 +55,7 @@ public:
   {
     RCLCPP_INFO(this->get_logger(), "Velodyne Cluster Node has been started");
 
-    // marker_Pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/velodyne_bbox", 100);
+    marker_Pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/velodyne_bbox", 100);
     LiDAR_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_points_filtered", 100);
     LiDAR_pub_center = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_points_filtered_center", 100);
     bbox_pub_ = this->create_publisher<interfaces::msg::NewDetection3DArray>("/lidar_bbox", 10);
@@ -99,7 +99,7 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
   pcl::EuclideanClusterExtraction<PointT> ECE;
   ECE.setClusterTolerance(0.3); // 1m
   ECE.setMinClusterSize(8); // 몇 개부터 한 군집?
-  ECE.setMaxClusterSize(500); // 몇 개까지 한 군집?
+  ECE.setMaxClusterSize(100); // 몇 개까지 한 군집?
   ECE.setSearchMethod(tree);
   ECE.setInputCloud(cloud_filtered);
   ECE.extract(cluster_indices);
@@ -131,9 +131,7 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     cluster->is_dense = true;
     clusters.push_back(cluster);
   }
-  //cout << clusters.size() << endl;
-  // 클러스터 사이즈와 함께 ros time 터미널에 출력
-  // RCLCPP_INFO(this->get_logger(), "cluster size : %d", clusters.size());
+  cout << clusters.size() << endl;
 
   visualization_msgs::msg::MarkerArray markerArray;
   // vision_msgs::msg::Detection3DArray myboxArray;
@@ -200,31 +198,28 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     myboxArray.detections.push_back(detection);
 
 //=================================================================================
+    marker.header.frame_id = "velodyne";
+    marker.ns = "my_marker";
+    marker.id = i;
+    marker.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+    marker.lifetime.nanosec = 100000000;
 
-//===============================[ 시각화 ]=========================================
-    // marker.header.frame_id = "velodyne";
-    // marker.ns = "my_marker";
-    // marker.id = i;
-    // marker.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
-    // marker.action = visualization_msgs::msg::Marker::ADD;
-    // marker.type = visualization_msgs::msg::Marker::CUBE;
-    // marker.lifetime.nanosec = 100000000;
+    marker.scale.x = width;
+    marker.scale.y = height;
+    marker.scale.z = depth; //스케일은 벡터 형태로?
+    //this->marker.scale = scale_; // 두 방법 모두 가능하다
 
-    // marker.scale.x = width;
-    // marker.scale.y = height;
-    // marker.scale.z = depth; //스케일은 벡터 형태로?
-    // //this->marker.scale = scale_; // 두 방법 모두 가능하다
+    marker.color.r = 0.5;
+    marker.color.g = 0.5;
+    marker.color.b = 0.5;
+    marker.color.a = 0.5; // 0~1사이 값
+    //this->marker.color = std_msgs::msg::ColorRGBA(0.5, 0.5, 0.5, 0.8); //위의 네 줄을 이렇게 해도 된다?
 
-    // marker.color.r = 0.5;
-    // marker.color.g = 0.5;
-    // marker.color.b = 0.5;
-    // marker.color.a = 0.5; // 0~1사이 값
-    // //this->marker.color = std_msgs::msg::ColorRGBA(0.5, 0.5, 0.5, 0.8); //위의 네 줄을 이렇게 해도 된다?
-
-    // marker.pose.orientation = quaternion;
-    // marker.pose.position = center_point;
-    // markerArray.markers.push_back(marker);
-//==================================================================================
+    marker.pose.orientation = quaternion;
+    marker.pose.position = center_point;
+    markerArray.markers.push_back(marker);
 
     PointT pt3;
     pt3.x = centroid[0];
@@ -235,8 +230,8 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
   }
 
   // this->markerArray.markers.push_back(this->marker);
-  // marker_Pub_->publish(markerArray);
-  // markerArray.markers.clear();
+  marker_Pub_->publish(markerArray);
+  markerArray.markers.clear();
 
   pcl::PCLPointCloud2 cloud_p;
   pcl::toPCLPointCloud2(TotalCloud, cloud_p);
@@ -245,7 +240,6 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
   this->output.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
   this->LiDAR_pub_->publish(this->output);
 
-  // 센터 펍
   pcl::PCLPointCloud2 cloud_p2;
   pcl::toPCLPointCloud2(TotalCloud2, cloud_p2);
   pcl_conversions::fromPCL(cloud_p2, this->output2);

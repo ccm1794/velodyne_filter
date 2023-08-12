@@ -26,7 +26,7 @@ public:
 
     LiDAR_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_VoxelGrid", 100);
     LiDAR_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "/velodyne_points", 100,
+      "/velodyne_ransac", 100,
       [this](const sensor_msgs::msg::PointCloud2::SharedPtr msg) -> void
       {
         LiDARCallback(msg);
@@ -45,7 +45,6 @@ private:
 
 void VelodyneVoxelGrid::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-  // RCLCPP_INFO(this->get_logger(), "subscribing pointcloud data");
   pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
   pcl::fromROSMsg(*msg, *cloud_filtered);
 

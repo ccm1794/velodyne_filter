@@ -59,7 +59,7 @@ void VelodyneROI::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedPtr m
   if(cloud_filtered->points.size() == 0)
   {
     this->flag = 0;
-    //cout << "조졌네 이거" << endl;
+    cout << "조졌네 이거" << endl;
   }
   else
   {

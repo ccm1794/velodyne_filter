@@ -1,3 +1,4 @@
+// 깃에 추가함.
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_cloud.hpp>
@@ -24,8 +25,17 @@
 #include <pcl/filters/crop_box.h>
 #include <pcl/surface/mls.h>
 
+#include <interfaces/msg/new_detection3_d_array.hpp>
+#include <vision_msgs/msg/bounding_box3_d.hpp>
+#include <vision_msgs/msg/detection3_d.hpp>
+#include <vision_msgs/msg/detection3_d_array.hpp>
+#include <vision_msgs/msg/object_hypothesis_with_pose.hpp>
+
+
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <typeinfo>
+#include <cstdio>
+
 
 using namespace std;
 using PointT = pcl::PointXYZI;
@@ -33,9 +43,11 @@ using PointT = pcl::PointXYZI;
 class VelodyneCluster : public rclcpp::Node
 {
 public:
-  visualization_msgs::msg::MarkerArray markerArray;
-  visualization_msgs::msg::Marker marker;
+  // visualization_msgs::msg::MarkerArray markerArray;
+  // visualization_msgs::msg::Marker marker;
   sensor_msgs::msg::PointCloud2 output;
+  sensor_msgs::msg::PointCloud2 output2;
+  char mystr[10];
   
 public:
   VelodyneCluster()
@@ -45,6 +57,9 @@ public:
 
     marker_Pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/velodyne_bbox", 100);
     LiDAR_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_points_filtered", 100);
+    LiDAR_pub_center = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_points_filtered_center", 100);
+    bbox_pub_ = this->create_publisher<interfaces::msg::NewDetection3DArray>("/lidar_bbox", 10);
+
     LiDAR_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
       "/velodyne_ROI", 100,
       [this](const sensor_msgs::msg::PointCloud2::SharedPtr msg) -> void
@@ -64,7 +79,10 @@ public:
 private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_Pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr LiDAR_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr LiDAR_pub_center;
+  rclcpp::Publisher<interfaces::msg::NewDetection3DArray>::SharedPtr bbox_pub_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr LiDAR_sub_;
+  
 };
 
 void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
@@ -79,9 +97,9 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
   tree->setInputCloud(cloud_filtered);
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<PointT> ECE;
-  ECE.setClusterTolerance(0.5); // 1m
-  ECE.setMinClusterSize(1); // 몇 개부터 한 군집?
-  ECE.setMaxClusterSize(2000); // 몇 개까지 한 군집?
+  ECE.setClusterTolerance(0.3); // 1m
+  ECE.setMinClusterSize(8); // 몇 개부터 한 군집?
+  ECE.setMaxClusterSize(100); // 몇 개까지 한 군집?
   ECE.setSearchMethod(tree);
   ECE.setInputCloud(cloud_filtered);
   ECE.extract(cluster_indices);
@@ -90,6 +108,7 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
 
   int j = 0;
   pcl::PointCloud<PointT> TotalCloud;
+  pcl::PointCloud<PointT> TotalCloud2;
   std::vector<pcl::PointCloud<PointT>::Ptr, Eigen::aligned_allocator<pcl::PointCloud<PointT>::Ptr>> clusters;
 
   for(std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it, ++j)
@@ -112,70 +131,23 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     cluster->is_dense = true;
     clusters.push_back(cluster);
   }
-  
+  //cout << clusters.size() << endl;
+  // 클러스터 사이즈와 함께 ros time 터미널에 출력
+  RCLCPP_INFO(this->get_logger(), "cluster size : %d", clusters.size());
+
+  visualization_msgs::msg::MarkerArray markerArray;
+  // vision_msgs::msg::Detection3DArray myboxArray;
+  interfaces::msg::NewDetection3DArray myboxArray;
   for(int i=0; i<clusters.size(); i++)
   {
+    visualization_msgs::msg::Marker marker;
     Eigen::Vector4f centroid;
     Eigen::Vector4f min_p;
     Eigen::Vector4f max_p;
+    Eigen::Vector3f scale_;
 
     pcl::compute3DCentroid(*clusters[i], centroid);
     pcl::getMinMax3D(*clusters[i], min_p, max_p); //min_p와 max_p는 vector4f이므로 출력은 min_p[0] 이런 식으로 뽑을 수 있다.
-
-    cout << min_p[0] << endl;
-    cout << "====" << endl;
-
-    //Define the eight vertices of the bounding box
-    std::vector<pcl::PointXYZ> vertices;
-    vertices.push_back(pcl::PointXYZ(min_p[0], min_p[1], min_p[2]));
-    vertices.push_back(pcl::PointXYZ(max_p[0], min_p[1], min_p[2]));
-    vertices.push_back(pcl::PointXYZ(max_p[0], max_p[1], min_p[2]));
-    vertices.push_back(pcl::PointXYZ(min_p[0], max_p[1], min_p[2]));
-    vertices.push_back(pcl::PointXYZ(min_p[0], max_p[1], max_p[2]));
-    vertices.push_back(pcl::PointXYZ(min_p[0], min_p[1], max_p[2]));
-    vertices.push_back(pcl::PointXYZ(max_p[0], min_p[1], max_p[2]));
-    vertices.push_back(pcl::PointXYZ(max_p[0], max_p[1], max_p[2]));
-
-    for(int p = 0; p < 4; ++p)
-    {
-      int j = (p + 1) % 4;
-      int k = p + 4;
-      int l = j + 4;
-
-      geometry_msgs::msg::Point startPoint, endPoint;
-      startPoint.x = vertices[p].x;
-      startPoint.y = vertices[p].y;
-      startPoint.z = vertices[p].z;
-
-      endPoint.x = vertices[j].x;
-      endPoint.y = vertices[j].y;
-      endPoint.z = vertices[j].z;
-
-      this->marker.points.push_back(startPoint);
-      this->marker.points.push_back(endPoint);
-
-      startPoint.x = vertices[k].x;
-      startPoint.y = vertices[k].y;
-      startPoint.z = vertices[k].z;
-
-      endPoint.x = vertices[l].x;
-      endPoint.y = vertices[l].y;
-      endPoint.z = vertices[l].z;
-
-      this->marker.points.push_back(startPoint);
-      this->marker.points.push_back(endPoint);
-
-      startPoint.x = vertices[p].x;
-      startPoint.y = vertices[p].y;
-      startPoint.z = vertices[p].z;
-
-      endPoint.x = vertices[k].x;
-      endPoint.y = vertices[k].y;
-      endPoint.z = vertices[k].z;
-
-      this->marker.points.push_back(startPoint);
-      this->marker.points.push_back(endPoint);
-    }
 
     geometry_msgs::msg::Point center_point;
     center_point.x = centroid[0];
@@ -192,34 +164,96 @@ void VelodyneCluster::LiDARCallback(const sensor_msgs::msg::PointCloud2::SharedP
     max_point.y = max_p[1];
     max_point.z = max_p[2];
 
-
     float width = max_p[0] - min_p[0];
     float height = max_p[1] - min_p[1];
     float depth = max_p[2] - min_p[2];
 
-    Eigen::Quaternionf rotation(1.0, 0.0, 0.0, 0.0);
+    scale_[0] = width; scale_[1] = height; scale_[2] = depth;
+
+    Eigen::Quaternionf rotation(0.0, 0.0, 0.0, 1.0);
+    geometry_msgs::msg::Quaternion quaternion;
+    quaternion.x = rotation.x();
+    quaternion.y = rotation.y();
+    quaternion.z = rotation.z();
+    quaternion.w = rotation.w();
 
     pcl::PointXYZ boxCenter(centroid[0], centroid[1], centroid[2]);
     pcl::PointXYZ boxDimensions(width, height, depth);
     pcl::PointXYZ boxOrientation(rotation.x(), rotation.y(), rotation.z());
+
+//===============================[ 3d bbox ]=======================================
+
+    vision_msgs::msg::Detection3D detection;
+    vision_msgs::msg::BoundingBox3D bbox;
+    // vision_msgs::msg::ObjectHypothesisWithPose id;
+
+    bbox.center.position = center_point;
+    bbox.center.orientation = quaternion;
+    bbox.size.x = width;
+    bbox.size.y = height;
+    bbox.size.z = depth;
+
+    detection.header.frame_id = "velodyne";
+    detection.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+    detection.bbox = bbox;
+
+    myboxArray.detections.push_back(detection);
+
+//=================================================================================
+    marker.header.frame_id = "velodyne";
+    marker.ns = "my_marker";
+    marker.id = i;
+    marker.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.type = visualization_msgs::msg::Marker::CUBE;
+    marker.lifetime.nanosec = 100000000;
+
+    marker.scale.x = width;
+    marker.scale.y = height;
+    marker.scale.z = depth; //스케일은 벡터 형태로?
+    //this->marker.scale = scale_; // 두 방법 모두 가능하다
+
+    marker.color.r = 0.5;
+    marker.color.g = 0.5;
+    marker.color.b = 0.5;
+    marker.color.a = 0.5; // 0~1사이 값
+    //this->marker.color = std_msgs::msg::ColorRGBA(0.5, 0.5, 0.5, 0.8); //위의 네 줄을 이렇게 해도 된다?
+
+    marker.pose.orientation = quaternion;
+    marker.pose.position = center_point;
+    markerArray.markers.push_back(marker);
+
+    PointT pt3;
+    pt3.x = centroid[0];
+    pt3.y = centroid[1];
+    pt3.z = centroid[2];
+    pt3.intensity = float(5);
+    TotalCloud2.push_back(pt3);
   }
-  this->marker.header.frame_id = "velodyne";
-  this->marker.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
-  this->marker.action = visualization_msgs::msg::Marker::ADD;
-  this->marker.type = visualization_msgs::msg::Marker::LINE_LIST;
-  this->marker.scale.x = 0.02; // Set the line width
-  
-  this->markerArray.markers.push_back(this->marker);
-  this->marker_Pub_->publish(this->markerArray);
+
+  // this->markerArray.markers.push_back(this->marker);
+  marker_Pub_->publish(markerArray);
+  markerArray.markers.clear();
 
   pcl::PCLPointCloud2 cloud_p;
   pcl::toPCLPointCloud2(TotalCloud, cloud_p);
-
   pcl_conversions::fromPCL(cloud_p, this->output);
-
-  output.header.frame_id = "velodyne";
-
+  this->output.header.frame_id = "velodyne";
+  this->output.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
   this->LiDAR_pub_->publish(this->output);
+
+  pcl::PCLPointCloud2 cloud_p2;
+  pcl::toPCLPointCloud2(TotalCloud2, cloud_p2);
+  pcl_conversions::fromPCL(cloud_p2, this->output2);
+  this->output2.header.frame_id = "velodyne";
+  this->output2.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+  this->LiDAR_pub_center->publish(this->output2);
+
+  
+  myboxArray.header.frame_id = "velodyne";
+  myboxArray.header.stamp = rclcpp::Clock(RCL_ROS_TIME).now();
+  myboxArray.len.data = clusters.size();
+  this->bbox_pub_->publish(myboxArray);
 }
 
 int main(int argc, char **argv)
@@ -232,3 +266,7 @@ int main(int argc, char **argv)
 
 // 이 코드는 kdtree에 값을 넣을 때 데이터에 inf 나 nan 값이 있으면 오류가 뜨는 듯 하다.
 // 이것은 plz코드에 있는 385번째 줄부터 시작하는 범위를 제한하는 것으로 문제를 해결할 수 있다.
+
+
+// rviz상에 박스가 최대 클러스터 개수만큼 계속 남아 있는 현상 발생
+// marker에 lifetime을 설정함으로 해결 가능
